@@ -1,0 +1,77 @@
+    const handleCreateUser = async () => {
+        const usernameTrim = form.username.trim();
+        const firstNameTrim = form.first_name.trim();
+        const surnameTrim = form.surname.trim();
+        const groupTrim = form.group_number.trim();
+        const passwordTrim = form.password.trim();
+
+        if (!usernameTrim || !firstNameTrim || !surnameTrim) {
+            setAlert('Lojin (ID), ady we familiyasy yazûëmaly.');
+            return;
+        }
+        if (!passwordTrim || passwordTrim.length < 6) {
+            setAlert('Parol hokmany we azyndan 6 nysan bolmaly.');
+            return;
+        }
+        if (form.role === 'student') {
+            if (!/^[0-9]{6}$/.test(usernameTrim)) {
+                setAlert('Student ID dine 6 sanydan durmaly.');
+                return;
+            }
+            if (!groupTrim) {
+                setAlert('Topar belgisi yazylmaly.');
+                return;
+            }
+        }
+
+        const payload = {
+            username: usernameTrim,
+            first_name: firstNameTrim,
+            surname: surnameTrim,
+            role: form.role,
+            group_number: form.role === 'student' ? groupTrim : '',
+        };
+        payload.password = passwordTrim;
+
+        try {
+            const res = await axios.post(`${API_URL}/api/admin/users/create/`, payload, axiosConfig);
+            const created = res.data;
+            if (created.role === 'teacher') {
+                setTeachers((prev) => [...prev, created]);
+            } else {
+                setStudents((prev) => [...prev, created]);
+            }
+            setAlert('Ulanyjy ustunlikli gosuldy.');
+            setForm({ role: 'teacher', username: '', first_name: '', surname: '', group_number: '', password: '' });
+            setSelectedUser(created);
+        } catch (error) {
+            console.error('Ulanyjy doretmekde nasazlyk:', error.response?.data || error);
+            const data = error.response?.data;
+            let message = data?.detail;
+            if (!message && data) {
+                if (typeof data === 'string') message = data;
+                else if (Array.isArray(data)) message = data.join(' ');
+                else if (typeof data === 'object') message = Object.values(data).flat().join(' ');
+            }
+            setAlert(message || 'Doretmekde nasazlyk.');
+        }
+    };
+
+    const handleDeleteUser = async (user) => {
+        if (!user?.id) return;
+        if (!window.confirm(`"${user.username} ${user.surname}" pozulsynmy?`)) return;
+        try {
+            await axios.delete(`${API_URL}/api/admin/users/${user.id}/`, axiosConfig);
+            if (user.role === 'teacher') {
+                setTeachers((prev) => prev.filter((t) => t.id !== user.id));
+            } else {
+                setStudents((prev) => prev.filter((s) => s.id !== user.id));
+            }
+            if (selectedUser?.id === user.id) setSelectedUser(null);
+            setAlert('Pozuldy.');
+        } catch (error) {
+            console.error('Pozmakda nasazlyk:', error.response?.data || error);
+            setAlert(error.response?.data?.detail || 'Pozup bolmady.');
+        }
+    };
+
